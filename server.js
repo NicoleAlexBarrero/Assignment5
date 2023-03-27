@@ -6,7 +6,7 @@
 * 
 *  Name: Nicole Barrero Student ID: 158270215 Date: 03/26/2023
 *
-*  Online (Cyclic) Link: ________________________________________________________
+*  Online (Cyclic) Link: https://colorful-bee-housecoat.cyclic.app
 *
 ********************************************************************************/ 
 
@@ -213,7 +213,7 @@ app.post("/posts/add", upload.single("featureImage"), (req,res)=>{
 });
 
 app.get('/posts/add', (req, res) => { //update 
-    blogService.getCategories()
+    blogData.getCategories()
         .then(data => res.render("addPost", { categories: data }))
         .catch(err => {
             res.render("addPost", { categories: [] })
@@ -234,7 +234,7 @@ app.get('/post/:id', (req,res)=>{
 });
 
 app.get("/posts/delete/:id", (req, res) => {
-    blogService.deletePostById(req.params.id)
+    blogData.deletePostById(req.params.id)
         .then(() => {
             res.redirect("/posts");
         }).catch(err => {
@@ -310,13 +310,13 @@ app.get("/categories/add", (req, res) => {
 });
 
 app.post("/categories/add", (req, res) => {
-    blogService.addCategory(req.body).then(() => {
+    blogData.addCategory(req.body).then(() => {
         res.redirect("/categories");
     })
 });
 
 app.get("/categories/delete/:id", (req, res) => {
-    blogService.deleteCategoryById(req.params.id)
+    blogData.deleteCategoryById(req.params.id)
         .then(() => {
             res.redirect("/categories");
         }).catch(err => {
@@ -328,7 +328,7 @@ app.get("/categories/delete/:id", (req, res) => {
 
 //
 app.get("/posts/delete/:id", (req, res) => {
-    blogService.deletePostById(req.params.id)
+    blogData.deletePostById(req.params.id)
         .then(() => {
             res.redirect("/posts");
         }).catch(err => {
