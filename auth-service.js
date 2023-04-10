@@ -25,7 +25,7 @@ module.exports = User;
 
 module.exports.initialize = function() { //initialize
     return new Promise(function(resolve, reject) {
-        let db = mongoose.createConnection("mongodb+srv://nbarrero:<password>@senecaweb.x5fzslg.mongodb.net/?retryWrites=true&w=majority");
+        let db = mongoose.createConnection("mongodb+srv://nbarrero:EngzEvk3bB8SQ81s@senecaweb.x5fzslg.mongodb.net/?retryWrites=true&w=majority");
         db.on('error', (err) => {
 
 
