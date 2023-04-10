@@ -1,15 +1,12 @@
 /*********************************************************************************
-*  WEB322 – Assignment 05
-*  I declare that this assignment is my own work in accordance with Seneca  Academic Policy.  No part of this
-*  assignment has been copied manually or electronically from any other source (including web sites) or 
-*  distributed to other students.
-* 
-*  Name: Nicole Barrero Student ID: 158270215 Date: 03/26/2023
-*
-*  Online (Cyclic) Link: https://colorful-bee-housecoat.cyclic.app
-*
-********************************************************************************/ 
-
+ *  WEB322 – Assignment 06
+ *  I declare that this assignment is my own work in accordance with Seneca  Academic Policy.  No part of this assignment has been copied manually or electronically from any other source 
+ *  (including 3rd party web sites) or distributed to other students.
+ * 
+ *  Name: Nicole Barrero Student ID: 158270215 Date: 04/09/2023
+ *
+ *  Online (Cyclic) Link: 
+ ********************************************************************************/
 
 
 
@@ -21,33 +18,49 @@ const streamifier = require('streamifier');
 const exphbs = require("express-handlebars");
 const path = require("path");
 const stripJs = require('strip-js');
+var authData = require('./auth-service') //As 6 
+const clientSessions = require("client-sessions");//As 6
+
 
 const app = express();
-
-
 
 const HTTP_PORT = process.env.PORT || 8080;
 
 cloudinary.config({
-    cloud_name: 'Cloud Name',
-    api_key: 'API Key',
-    api_secret: 'API Secret',
+    cloud_name: 'cloud_name',
+    api_key: 'api_key',
+    api_secret: 'api_secret',
     secure: true
 });
 
 const upload = multer();
 
+//middleware
+app.use(clientSessions({
+    cookieName: "session",
+    secret: "week10example_web322",
+    duration: 2 * 60 * 1000,
+    activeDuration: 1000 * 60
+}));
 
+//session
+app.use(function(req, res, next) {
+    res.locals.session = req.session;
+    next();
+});
 
-
-
-
+//
+function ensureLogin(req, res, next) {
+    if (!req.session.user) {
+        res.redirect("/login");
+    } else {
+        next();
+    }
+}
 
 app.engine(".hbs", exphbs.engine({
     extname: ".hbs",
     helpers: {
-
-       
         navLink: function(url, options){
             return '<li' + 
                 ((url == app.locals.activeRoute) ? ' class="active" ' : '') + 
@@ -65,7 +78,6 @@ app.engine(".hbs", exphbs.engine({
         safeHTML: function(context){
             return stripJs(context);
         },
-        //As 5
         formatDate: function(dateObj){
             let year = dateObj.getFullYear();
             let month = (dateObj.getMonth() + 1).toString();
@@ -75,18 +87,59 @@ app.engine(".hbs", exphbs.engine({
     }
 }));
 
-
-
 app.set('view engine', '.hbs');
-
-app.use(express.urlencoded({ extended: true }));
-
 
 app.use(express.static('public'));
 
+//As 6
+//login
+app.get("/login", (req, res) => {
+    res.render("login");
+});
+
+//register
+app.get("/register", (req, res) => {
+    res.render("register");
+});
+
+app.post("/register", (req, res) => {
+    authData.registerUser(req.body)
+        .then(() => res.render("register", { successMessage: "User created" }))
+        .catch(err => res.render("register", { errorMessage: err, userName: req.body.userName }))
+});
+
+app.post("/login", (req, res) => {
+    req.body.userAgent = req.get('User-Agent');
+    authData.checkUser(req.body).then((user) => {
+        req.session.user = {
+            userName: user.userName,
+            email: user.email,
+            loginHistory: user.loginHistory
+        }
+        res.redirect('/posts');
+    }).catch((err) => {
+        res.render("login", { errorMessage: err, userName: req.body.userName });
+    });
+});
+
+//logout
+app.get("/logout", (req, res) => {
+    req.session.reset();
+    res.redirect("/");
+});
+
+//get User History
+app.get("/userHistory", ensureLogin, (req, res) => {
+    res.render("userHistory");
+});
+
+////////////////////////////////////////////////
+
+app.use(express.urlencoded({extended: true}));
+
 app.use(function(req,res,next){
     let route = req.path.substring(1);
-    app.locals.activeRoute = (route == "/") ? "/" : "/" + route.replace(/\/(.*)/, "");
+    app.locals.activeRoute = "/" + (isNaN(route.split('/')[1]) ? route.replace(/\/(?!.*)/, "") : route.replace(/\/(.*)/, ""));    
     app.locals.viewingCategory = req.query.category;
     next();
 });
@@ -159,12 +212,10 @@ app.get('/posts', (req, res) => {
         queryPromise = blogData.getAllPosts()
     }
 
-    queryPromise.then(data => { // update
-        if (data.length > 0) {
-            res.render("posts", { posts: data });
-        } else {
-            res.render("posts", { message: "no results" });
-        }
+    queryPromise.then(data => {
+        (data.length > 0) ? res.render("posts", {posts: data}) : res.render("posts",{ message: "no results" });
+    }).catch(err => {
+        res.render("posts", {message: "no results"});
     })
 
 });
@@ -212,14 +263,21 @@ app.post("/posts/add", upload.single("featureImage"), (req,res)=>{
     }   
 });
 
-app.get('/posts/add', (req, res) => { //update 
-    blogData.getCategories()
-        .then(data => res.render("addPost", { categories: data }))
-        .catch(err => {
-            res.render("addPost", { categories: [] })
-            console.log(err);
-        });
+app.get('/posts/add', (req, res) => {
+    blogData.getCategories().then((data)=>{
+        res.render("addPost", {categories: data});
+     }).catch((err) => {
+       // set category list to empty array
+       res.render("addPost", {categories: [] });
+    });
+});
 
+app.get("/posts/delete/:id", (req,res)=>{
+    blogData.deletePostById(req.params.id).then(()=>{
+      res.redirect("/posts");
+    }).catch((err)=>{
+      res.status(500).send("Unable to Remove Post / Post Not Found");
+    });
 });
 
 app.get('/post/:id', (req,res)=>{
@@ -228,23 +286,7 @@ app.get('/post/:id', (req,res)=>{
     }).catch(err=>{
         res.json({message: err});
     });
-
-
-
 });
-
-app.get("/posts/delete/:id", (req, res) => {
-    blogData.deletePostById(req.params.id)
-        .then(() => {
-            res.redirect("/posts");
-        }).catch(err => {
-            res.status(500).send("Unable to Remove Post / Post not found");
-            console.log(err);
-        });
-});
-
-
-
 
 app.get('/blog/:id', async (req, res) => {
 
@@ -297,46 +339,32 @@ app.get('/blog/:id', async (req, res) => {
 });
 
 app.get('/categories', (req, res) => {
-    if (data.length > 0) {
-        res.render("categories", { categories: data });
-    } else {
-        res.render("categories", { message: "no results" });
-    }
- 
+    blogData.getCategories().then((data => {
+        (data.length > 0) ? res.render("categories", {categories: data}) : res.render("categories",{ message: "no results" });
+    })).catch(err => {
+        res.render("categories", {message: "no results"});
+    });
 });
 
-app.get("/categories/add", (req, res) => {
-    res.render(path.join(__dirname, "/views/addCategory.hbs"));
+app.get('/categories/add', (req, res) => {
+    res.render("addCategory");
 });
 
-app.post("/categories/add", (req, res) => {
-    blogData.addCategory(req.body).then(() => {
+app.post('/categories/add', (req,res)=>{
+    blogData.addCategory(req.body).then(category=>{
         res.redirect("/categories");
+    }).catch(err=>{
+        res.status(500).send(err.message);
     })
 });
 
-app.get("/categories/delete/:id", (req, res) => {
-    blogData.deleteCategoryById(req.params.id)
-        .then(() => {
-            res.redirect("/categories");
-        }).catch(err => {
-            res.status(500).send("Unable to Remove Category / Category not found");
-            console.log(err);
-        });
+app.get("/categories/delete/:id", (req,res)=>{
+    blogData.deleteCategoryById(req.params.id).then(()=>{
+      res.redirect("/categories");
+    }).catch((err)=>{
+      res.status(500).send("Unable to Remove Category / Category Not Found");
+    });
 });
-
-
-//
-app.get("/posts/delete/:id", (req, res) => {
-    blogData.deletePostById(req.params.id)
-        .then(() => {
-            res.redirect("/posts");
-        }).catch(err => {
-            res.status(500).send("Unable to Remove Post / Post not found");
-            console.log(err);
-        });
-});
-
 
 app.use((req, res) => {
     res.status(404).render("404");
@@ -349,3 +377,14 @@ blogData.initialize().then(() => {
 }).catch((err) => {
     console.log(err);
 })
+
+
+blogData.initialize() //Step 3
+    .then(authData.initialize)
+    .then(function() {
+        app.listen(HTTP_PORT, function() {
+            console.log("app listening on: " + HTTP_PORT)
+        });
+    }).catch(function(err) {
+        console.log("unable to start server: " + err);
+    });
