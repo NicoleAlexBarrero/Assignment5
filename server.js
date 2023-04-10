@@ -5,7 +5,7 @@
  * 
  *  Name: Nicole Barrero Student ID: 158270215 Date: 04/09/2023
  *
- *  Online (Cyclic) Link: https://colorful-bee-housecoat.cyclic.app
+ *  Online (Cyclic) Link: https://colorful-bee-housecoat.cyclic.app/blog
  ********************************************************************************/
 
 
